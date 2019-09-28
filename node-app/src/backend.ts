@@ -102,12 +102,12 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   }
   const serverPathRoot = path.resolve(__dirname, '..', 'conf', 'server')
   const server = new Hapi.Server(serverOptions)
-  //const WebSockets = require('ws')
-  var WebSockets = require('ws-mock').WsServer
+  const WebSockets = require('ws')
+  //var WebSockets = require('ws-mock').WsServer
   //const ws = new WebSockets()
   var ws = new WebSockets('ws://localhost:1337/Chat')
-  ws.send = () => {}
-  ws.addConnection()
+  //ws.send = () => {}
+  //ws.addConnection()
   console.log(ws)
   ws.emit('warning', e => {})
   ws.on('open', function open() {
