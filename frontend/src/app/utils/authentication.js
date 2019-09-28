@@ -87,11 +87,12 @@ export default class Authentication{
      */
 
     makeCall(url, method="GET", data){
-        let body='g'
+        let body;
         if(data){
             body = JSON.stringify(data)
             window.Twitch.ext.rig.log(body)
         }
+        
         window.Twitch.ext.rig.log('makeCall')
         return new Promise((resolve, reject)=>{
             if(this.isAuthenticated()){
@@ -99,13 +100,14 @@ export default class Authentication{
                     'Content-Type':'application/json',
                     'Authorization': `Bearer ${this.state.token}`
                 }
+                let req = {method,headers}
+                if(method!='GET'){
+                    req.body = body;
+                }
                 window.Twitch.ext.rig.log('about to fetch')
                 fetch(url,
-                    {
-                        method,
-                        headers,
-                    })
-                    .then(response=>resolve(true))
+                    req)
+                    .then(response=>resolve(response))
                     .catch(e=>reject(e))
             }else{
                 reject('Unauthorized')

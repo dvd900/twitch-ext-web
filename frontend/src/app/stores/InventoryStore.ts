@@ -1,28 +1,26 @@
 import { observable, computed, action } from 'mobx';
-import {ItemModel } from 'app/models';
+import { ItemModel } from 'app/models';
 
 export class InventoryStore {
-
-  constructor() {
-  }
+  constructor() {}
 
   @observable
-  selectedItem:ItemModel;
-  
+  selectedItem: ItemModel;
+
   slideIndex = observable.box(0);
 
   @computed
-  get selectedItemId(): number|'no item'{
-    if(this.selectedItem){
+  get selectedItemId(): number | 'no item' {
+    if (this.selectedItem) {
       return this.selectedItem.itemId;
-    }else{
-      return 'no item'
+    } else {
+      return 'no item';
     }
   }
 
   @computed
-  get itemSelected():boolean{
-    return ! (this.selectedItem== null);
+  get itemSelected(): boolean {
+    return !(this.selectedItem == null);
   }
 
   @action
@@ -31,7 +29,7 @@ export class InventoryStore {
   };
 
   @action
-  incrementSlideIndex(inc:number){
+  incrementSlideIndex(inc: number) {
     this.slideIndex.set(inc);
   }
 }

@@ -1,13 +1,13 @@
-.credits{
-    position: absolute;
-    bottom: 10rem;
-    color: gold;
-    width: 4rem;
-    height: 2rem;
-    margin-left:1rem;
-    text-align: center;
-    vertical-align: middle;
-    line-height: 2rem;    
-    border-radius: 0px 20px 20px 0px;
-    background-color: #355728a5;
+.credits {
+  position: absolute;
+  bottom: 10rem;
+  color: gold;
+  width: 4rem;
+  height: 2rem;
+  margin-left: 1rem;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 2rem;
+  border-radius: 0px 20px 20px 0px;
+  background-color: #355728a5;
 }

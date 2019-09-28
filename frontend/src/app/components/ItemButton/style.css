@@ -1,20 +1,29 @@
 .Button {
-    transition: .18s;
-    opacity: .6;
-    cursor: pointer;
-    padding: 5px;
-    width: 80px;
-    height:80px;
-    outline: none;
-    -webkit-user-drag: none;
-    filter: drop-shadow(2px 4px 0 black);
-  }
-.pressed{
-    opacity: .9 !important;
+  transition: 0.18s;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 5px;
+  width: 80px;
+  height: 80px;
+  outline: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(2px 4px 0 black);
+}
+.pressed {
+  opacity: 0.9 !important;
 }
 .Button:hover {
-    opacity: .85 !important;
+  opacity: 0.85 !important;
+}
+.price {
+  position: absolute;
+  bottom: 0;
+  right: 15%;
+  color: rgb(34, 216, 34);
+  font-size: 1.4rem;
+  opacity: 1 !important;
+  z-index: 4;
 }
 :global(.Outline) {
-    fill: #0FF;
+  fill: #0ff;
 }
