@@ -27,6 +27,7 @@ const request = require('request')
 const ngrok = require('ngrok')
 const { promisify } = require('util')
 const MongoClient = require('mongodb').MongoClient
+import {User, UserListManager} from './queue-manager'
 const url = 'mongodb://localhost:27017'
 MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   const db = client.db('twitch')
@@ -50,7 +51,10 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   const channelColors = {}
   const channelCooldowns = {} // rate limit compliance
   let userCooldowns = {} // spam prevention
-  var users = []
+  
+  const QUEUE_TIME = 30;
+
+
   const STRINGS = {
     secretEnv: usingValue('secret'),
     clientIdEnv: usingValue('client-id'),
@@ -102,22 +106,13 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   }
   const serverPathRoot = path.resolve(__dirname, '..', 'conf', 'server')
   const server = new Hapi.Server(serverOptions)
-  const WebSockets = require('ws')
-  //var WebSockets = require('ws-mock').WsServer
-  //const ws = new WebSockets()
-  var ws = new WebSockets('ws://localhost:1337/Chat')
-  //ws.send = () => {}
-  //ws.addConnection()
-  console.log(ws)
-  ws.emit('warning', e => {})
-  ws.on('open', function open() {
-    ws.send('something')
-  })
+  //const WebSockets = require('ws')
+  var WebSockets = require('ws-mock').WsServer
+  var wsServer = new WebSockets();
+  let ws = wsServer.addConnection();
+  //var ws = new WebSockets('ws://localhost:1337/Chat')
 
-  ws.on('message', function incoming(data) {
-    console.log(data)
-  })
-  ;(async () => {
+  (async () => {
     // Handle a viewer request to cycle the color.
     const url = await ngrok.connect({
       proto: 'http', // http|tcp|tls, defaults to http
@@ -141,24 +136,19 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     server.route({
       method: 'PUT',
       path: '/tokens',
-      handler: tokensHandler,
+      handler: rollCall,
+    })
+    server.route({
+      method: 'GET',
+      path: '/queue',
+      handler: getQueueData
     })
     server.route({
       method: 'GET',
       path: '/user',
       handler: userHandler,
     })
-    server.route({
-      method: 'POST',
-      path: '/idle',
-      handler: idleHandler,
-    })
     // Handle a new viewer requesting the color.
-    server.route({
-      method: 'GET',
-      path: '/color/query',
-      handler: colorQueryHandler,
-    })
 
     server.route({
       method: 'GET',
@@ -187,6 +177,12 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
       userCooldowns = {}
     }, userCooldownClearIntervalMs)
   })()
+
+  var userListManager = new UserListManager(QUEUE_TIME);
+
+  function shiftQueue(){
+    userListManager.next();
+  }
 
   function usingValue(name) {
     return `Using environment variable for ${name}`
@@ -271,6 +267,17 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     }
   }
 
+  async function rollCall(req){
+    const payload = verifyAndDecode(req.headers.authorization)
+    const {
+      channel_id: channelId,
+      opaque_user_id: opaqueUserId,
+      user_id: userId,
+    } = payload
+    userListManager.userResponded(userId);
+    return true;
+  }
+
   async function spawnHandler(req) {
     console.log('got spawn')
     const payload = verifyAndDecode(req.headers.authorization)
@@ -295,6 +302,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
       console.log('returning credits', { credits: user.credits })
       return { credits: user.credits }
     }
+
     return false
   }
   async function userHandler(req) {
@@ -304,20 +312,28 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
       opaque_user_id: opaqueUserId,
       user_id: userId,
     } = payload
-    console.log(channelId)
     let user = await db.collection('users').findOne({ userId: userId })
     let credits = 0
+    let userName = '';
     if (!user) {
       let twitchuser = await api.users.getUsers({ id: userId })
       let userName = twitchuser.response.data[0].display_name
-      await db.collection('users').insertOne({ userId, userName, credits: 100 })
-      credits = 100
+      await db.collection('users').insertOne({ userId, userName, credits: 0 })
+      credits = 0
     } else {
-      credits = user.credits
+      credits = user.credits;
+      userName = user.userName;
     }
-
-    return { credits }
+    let newUser : User = {userId,userName,credits, askedForRoll: false};
+    userListManager.addUser(newUser);
+    return newUser;
   }
+
+  function getQueueData(req) {
+    console.log({userList: userListManager.userQueue, nextTurn: userListManager.turnEnds})
+    return {userList: userListManager.userQueue, nextTurn: userListManager.turnEnds};
+  }
+
   function idleHandler(req) {
     console.log('got idle')
     console.log(req.headers.authorization)
@@ -337,7 +353,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     }
     const body = JSON.stringify({
       content_type: 'application/json',
-      message: 'tokenTime',
+      message: 'token-time',
       targets: ['broadcast'],
     })
 
@@ -358,45 +374,38 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
       }
     )
   }
-  setInterval(tokenTime, 6000, channelId + '')
-  function colorCycleHandler(req) {
-    // Verify all requests.
-    const payload = verifyAndDecode(req.headers.authorization)
-    const { channel_id: channelId, opaque_user_id: opaqueUserId } = payload
 
-    // Store the color for the channel.
-    let currentColor = channelColors[channelId] || initialColor
-
-    // Bot abuse prevention:  don't allow a user to spam the button.
-    if (userIsInCooldown(opaqueUserId)) {
-      throw Boom.tooManyRequests(STRINGS.cooldown)
+  setInterval(callRoll, 10000, channelId + '')
+  setInterval(shiftQueue, 30000, channelId + '')
+  function broadcastNewQueueData() {
+    const headers = {
+      'Client-ID': clientId,
+      'Content-Type': 'application/json',
+      Authorization: bearerPrefix + makeServerToken(channelId),
     }
 
-    // Rotate the color as if on a color wheel.
-    verboseLog(STRINGS.cyclingColor, channelId, opaqueUserId)
-    currentColor = color(currentColor)
-      .rotate(colorWheelRotation)
-      .hex()
+    const body = JSON.stringify({
+      content_type: 'application/json',
+      message: 'queue',
+      targets: ['broadcast'],
+    })
 
-    // Save the new color for the channel.
-    channelColors[channelId] = currentColor
-
-    // Broadcast the color change to all other extension instances on this channel.
-    attemptColorBroadcast(channelId)
-
-    return currentColor
-  }
-
-  function colorQueryHandler(req) {
-    return true
-    // Verify all requests.
-    const payload = verifyAndDecode(req.headers.authorization)
-
-    // Get the color for the channel from the payload and return it.
-    const { channel_id: channelId, opaque_user_id: opaqueUserId } = payload
-    const currentColor = color(channelColors[channelId] || initialColor).hex()
-    verboseLog(STRINGS.sendColor, currentColor, opaqueUserId)
-    //return currentColor;
+    // Send the broadcast request to the Twitch API.
+    request(
+      `https://api.twitch.tv/extensions/message/${channelId}`,
+      {
+        method: 'POST',
+        headers,
+        body,
+      },
+      (err, res) => {
+        if (err) {
+          console.log(STRINGS.messageSendError, channelId, err)
+        } else {
+          verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
+        }
+      }
+    )
   }
 
   function tokenTime(channelId) {
@@ -405,61 +414,11 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     console.log(usersGivenTokens)
     broadcastCredits()
   }
-  function attemptColorBroadcast(channelId) {
-    // Check the cool-down to determine if it's okay to send now.
-    const now = Date.now()
-    const cooldown = channelCooldowns[channelId]
-    if (!cooldown || cooldown.time < now) {
-      // It is.
-      sendColorBroadcast(channelId)
-      channelCooldowns[channelId] = { time: now + channelCooldownMs }
-    } else if (!cooldown.trigger) {
-      // It isn't; schedule a delayed broadcast if we haven't already done so.
-      cooldown.trigger = setTimeout(
-        sendColorBroadcast,
-        now - cooldown.time,
-        channelId
-      )
-    }
-  }
 
-  function sendColorBroadcast(channelId) {
-    // Set the HTTP headers required by the Twitch API.
-    const headers = {
-      'Client-ID': clientId,
-      'Content-Type': 'application/json',
-      Authorization: bearerPrefix + makeServerToken(channelId),
-    }
-    console.log(verifyAndDecode(bearerPrefix + makeServerToken(channelId)))
-    console.log(headers)
-
-    // Create the POST body for the Twitch API request.
-    const currentColor = color(channelColors[channelId] || initialColor).hex()
-    const body = JSON.stringify({
-      content_type: 'application/json',
-      message: currentColor,
-      targets: ['broadcast'],
-    })
-
-    // Send the broadcast request to the Twitch API.
-    verboseLog(STRINGS.colorBroadcast, currentColor, channelId)
-    request(
-      `https://api.twitch.tv/extensions/message/${channelId}`,
-      {
-        method: 'POST',
-        headers,
-        body,
-      },
-      (err, res) => {
-        if (err) {
-          console.log(STRINGS.messageSendError, channelId, err)
-        } else {
-          console.log(err)
-          console.log(res.body)
-          verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
-        }
-      }
-    )
+  function callRoll(){
+    userListManager.rollCalled();
+    broadcastNewQueueData();
+    broadcastCredits()
   }
 
   // Create and return a JWT for use by this service.

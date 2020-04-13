@@ -8,7 +8,7 @@ export interface ItemButtonProps {
   isPressed: boolean;
   selectItem: (item: ItemModel) => any;
 }
-export interface ItemButtonState {}
+export interface ItemButtonState {hover:boolean}
 @observer
 export class ItemButton extends React.Component<
   ItemButtonProps,
@@ -16,7 +16,7 @@ export class ItemButton extends React.Component<
 > {
   constructor(props?: ItemButtonProps, context?: any) {
     super(props, context);
-    this.state = {};
+    this.state = {hover:false};
   }
 
   itemClicked = (e) => {
@@ -35,9 +35,14 @@ export class ItemButton extends React.Component<
     }
   };
 
+  hover(hover:boolean){
+    this.setState({hover});
+  }
   render() {
     return (
-      <div onClick={(e) => this.itemClicked(e)} className={'item'}>
+      <div onClick={(e) => this.itemClicked(e)} className={'item'}    
+      onMouseEnter={(e)=> this.hover(true)}
+      onMouseLeave={(e)=>this.hover(false)}>
         <input
           style={this.getCursorStyle()}
           className={cx(style.Button, {
@@ -47,7 +52,7 @@ export class ItemButton extends React.Component<
           src={
             'assets/icons/' +
             this.props.item.icon +
-            (this.props.isPressed ? '_outline' : '') +
+            (this.state.hover||this.props.isPressed ? '_outline' : '') +
             '.svg'
           }
         />

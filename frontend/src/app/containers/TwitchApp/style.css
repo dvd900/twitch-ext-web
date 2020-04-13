@@ -5,3 +5,14 @@
   top: 0;
   left: 0;
 }
+@font-face {
+  font-family: 'dosisextralight';
+  src: url('/assets/fonts/Dosis-Remake.woff2') format('woff2'),
+       url('/assets/fonts/Dosis-Remake3.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+}
+
+body{
+  font-family: 'dosisextralight';
+}
