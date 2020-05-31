@@ -93,7 +93,7 @@ export default class Authentication{
             window.Twitch.ext.rig.log(body)
         }
         
-        window.Twitch.ext.rig.log('makeCall')
+        window.Twitch.ext.rig.log('makeCall ', url)
         return new Promise((resolve, reject)=>{
             if(this.isAuthenticated()){
                 let headers={

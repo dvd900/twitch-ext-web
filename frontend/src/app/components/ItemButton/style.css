@@ -1,20 +1,25 @@
 .Button {
   transition: 0.18s;
-  opacity: .85;
+  opacity: 0.85;
   cursor: pointer;
   padding: 5px;
-  width: 3rem;
-  height: 3rem;
+  width: 80%;
+  height: 80%;
   outline: none;
   -webkit-user-drag: none;
   filter: drop-shadow(2px 5px 0 #42612a);
 }
 .pressed {
   opacity: 0.85 !important;
-  filter: contrast(0) sepia(1) hue-rotate(60deg) brightness(.24);
+  filter: contrast(0) sepia(1) hue-rotate(60deg) brightness(0.24);
+}
+.itemWrap {
+  width: 40%;
 }
 .Button:hover {
   opacity: 0.85 !important;
+  width: 80%;
+  height: 80%;
 }
 .price {
   position: absolute;
@@ -24,11 +29,8 @@
   font-size: 1.4rem;
   opacity: 1 !important;
   z-index: 4;
-  text-shadow:
-  -2px -2px 0 #2f461e,  
-   2px -2px 0 #42612a,
-  -2px  2px 0 #42612a,
-   2px  2px 0 #42612a;
+  text-shadow: -2px -2px 0 #2f461e, 2px -2px 0 #42612a, -2px 2px 0 #42612a,
+    2px 2px 0 #42612a;
 }
 :global(.Outline) {
   fill: #0ff;

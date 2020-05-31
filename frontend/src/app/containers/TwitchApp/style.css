@@ -4,15 +4,30 @@
   position: absolute;
   top: 0;
   left: 0;
+  display: flex;
+  align-items: flex-end;
 }
 @font-face {
   font-family: 'dosisextralight';
   src: url('/assets/fonts/Dosis-Remake.woff2') format('woff2'),
-       url('/assets/fonts/Dosis-Remake3.woff') format('woff');
+    url('/assets/fonts/Dosis-Remake3.woff') format('woff');
   font-weight: 900;
   font-style: normal;
 }
-
-body{
+.wrap {
+  width: 100%;
+  margin-bottom: 5rem;
+  display: flex;
+  justify-content: space-between;
+}
+body {
   font-family: 'dosisextralight';
+}
+
+* {
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: -moz-none;
+  -o-user-select: none;
+  user-select: none;
 }

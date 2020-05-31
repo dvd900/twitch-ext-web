@@ -6,20 +6,24 @@ import {
   STORE_TODO,
   STORE_ROUTER,
   STORE_INVENTORY,
-  STORE_USER
+  STORE_USER,
+  STORE_QUEUE
 } from 'app/constants';
 import InventoryStore from './InventoryStore';
 import UserStore from './UserStore';
-
+import QueueStore from './QueueStore';
 export function createStores(history: History, defaultTodos?: TodoModel[]) {
   const todoStore = new TodoStore(defaultTodos);
   const routerStore = new RouterStore(history);
   const inventoryStore = new InventoryStore();
-  const userStore = new UserStore();
+  const queueStore = new QueueStore();
+  const userStore = new UserStore(queueStore);
+
   return {
     [STORE_TODO]: todoStore,
     [STORE_ROUTER]: routerStore,
     [STORE_INVENTORY]: inventoryStore,
-    [STORE_USER]: userStore
+    [STORE_USER]: userStore,
+    [STORE_QUEUE]: queueStore
   };
 }

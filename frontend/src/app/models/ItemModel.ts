@@ -3,7 +3,7 @@ export class ItemModel {
   readonly itemId: number;
   readonly cost: number;
 
-  constructor(icon, itemId, cost) {
+  constructor(icon: string, itemId: number, cost: number) {
     this.icon = icon;
     this.itemId = itemId;
     this.cost = cost;

@@ -1,32 +1,47 @@
-import { observable, action } from 'mobx';
+import { observable, action} from 'mobx';
 import { Window } from 'app/utils/TwitchExt';
 import Authentication from 'app/utils/authentication';
 import { ItemModel } from 'app/models';
+import QueueStore, { User } from './QueueStore';
 export class UserStore {
   twitch;
+  queueStore: QueueStore;
   @observable
   credits: number = 201;
-  constructor() {
+
+  userId: string;
+  user: User;
+
+  constructor(queueStore: QueueStore) {
+    this.queueStore = queueStore;
     console.log('createing user store');
     this.Authentication = new Authentication();
     this.twitch = ((window as unknown) as Window).Twitch.ext;
     if (this.twitch) {
       this.twitch.actions.requestIdShare();
-      this.twitch.onAuthorized((auth) => {
-        console.log(auth);
+      this.twitch.onAuthorized(async (auth) => {
         this.Authentication.setToken(auth.token, auth.userId);
-        this.getUser();
+        this.user = await this.getUser();
+        this.queueStore.userId = this.user.userId;
+        this.userId = this.user.userId;
+        this.updateQueue();
         this.isLoaded = true;
       });
 
+      //why in the fuck is my user store maintaining this im in hell right lol
       this.twitch.listen('broadcast', async (target, contentType, body) => {
-        let res = await this.Authentication.makeCall(
-          'https://suicide.ngrok.io/tokens',
-          'PUT',
-          {}
-        );
-        let credits = await res.json();
-        this.setCredits(credits);
+        if (body === 'token-time') {
+          let res = await this.Authentication.makeCall(
+            'https://suicide.ngrok.io/tokens',
+            'PUT',
+            {}
+          );
+          let credits = await res.json();
+          console.log(credits);
+          //this.setCredits(credits);
+        } else if (body === 'queue') {
+          this.updateQueue();
+        }
       });
 
       this.twitch.onVisibilityChanged((isVisible, _c) => {});
@@ -46,6 +61,7 @@ export class UserStore {
 
   @action
   async spawnItem({ x, y, item }: SpawnItemRequest) {
+    y=1-y;
     let res = await this.Authentication.makeCall(
       'https://suicide.ngrok.io/items',
       'POST',
@@ -61,9 +77,21 @@ export class UserStore {
       'GET',
       {}
     )) as Response;
-    this.setCredits((await res.json()).credits);
+
+    return await res.json();
+  }
+
+  async updateQueue() {
+    let res = (await this.Authentication.makeCall(
+      'https://suicide.ngrok.io/queue',
+      'GET',
+      {}
+    )) as Response;
+    let queueData = await res.json();
+    this.queueStore.setNewQueueData(queueData.userList, queueData.nextTurn);
   }
 }
+
 interface SpawnItemRequest {
   x: number;
   y: number;

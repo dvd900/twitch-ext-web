@@ -27,7 +27,7 @@ const request = require('request')
 const ngrok = require('ngrok')
 const { promisify } = require('util')
 const MongoClient = require('mongodb').MongoClient
-import {User, UserListManager} from './queue-manager'
+import { User, UserListManager } from './queue-manager'
 const url = 'mongodb://localhost:27017'
 MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   const db = client.db('twitch')
@@ -51,9 +51,8 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   const channelColors = {}
   const channelCooldowns = {} // rate limit compliance
   let userCooldowns = {} // spam prevention
-  
-  const QUEUE_TIME = 30;
 
+  const QUEUE_TIME = 30
 
   const STRINGS = {
     secretEnv: usingValue('secret'),
@@ -106,11 +105,20 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   }
   const serverPathRoot = path.resolve(__dirname, '..', 'conf', 'server')
   const server = new Hapi.Server(serverOptions)
-  //const WebSockets = require('ws')
-  var WebSockets = require('ws-mock').WsServer
-  var wsServer = new WebSockets();
-  let ws = wsServer.addConnection();
-  //var ws = new WebSockets('ws://localhost:1337/Chat')
+  //const WebSocket = require('ws')
+  var WsServerMock = require('ws-mock').WsServer;
+  // create ws server instance
+  var wsServer = new WsServerMock();
+  var ws = wsServer.addConnection();
+//  var ws = new WebSocket('ws://localhost:1337/Chat');
+ 
+
+ // ws.on('open', function open() {
+ //   console.log('socket open o7')
+ // });
+
+
+
 
   (async () => {
     // Handle a viewer request to cycle the color.
@@ -141,7 +149,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     server.route({
       method: 'GET',
       path: '/queue',
-      handler: getQueueData
+      handler: getQueueData,
     })
     server.route({
       method: 'GET',
@@ -178,10 +186,10 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     }, userCooldownClearIntervalMs)
   })()
 
-  var userListManager = new UserListManager(QUEUE_TIME);
-
-  function shiftQueue(){
-    userListManager.next();
+  var userListManager = new UserListManager(QUEUE_TIME)
+  
+  function shiftQueue() {
+    userListManager.next()
   }
 
   function usingValue(name) {
@@ -267,43 +275,25 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     }
   }
 
-  async function rollCall(req){
+  async function rollCall(req) {
     const payload = verifyAndDecode(req.headers.authorization)
     const {
       channel_id: channelId,
       opaque_user_id: opaqueUserId,
       user_id: userId,
     } = payload
-    userListManager.userResponded(userId);
-    return true;
+    userListManager.userResponded(userId)
+    return true
   }
 
   async function spawnHandler(req) {
-    console.log('got spawn')
     const payload = verifyAndDecode(req.headers.authorization)
-    const { user_id: userId } = payload
-    console.log('hello', req.payload)
-    const { itemId, x, y, cost } = req.payload
+    delete req.payload.cost;
+    let data = JSON.stringify(req.payload)
     let messageInd = 1
-    let message = { messageInd, data: { x, y, itemId } }
-    let user = await db.collection('users').findOne({ userId: userId })
-    if (user) {
-      if (user.credits + cost >= 0) {
-        user = await db
-          .collection('users')
-          .findOneAndUpdate(
-            { userId },
-            { $inc: { credits: cost } },
-            { returnOriginal: false }
-          )
-        user = user.value
-        ws.send(JSON.stringify(message))
-      }
-      console.log('returning credits', { credits: user.credits })
-      return { credits: user.credits }
-    }
-
-    return false
+    console.log('sending to unity', data)
+    ws.send(messageInd + "_"+ data)
+    return { credits: 0 }
   }
   async function userHandler(req) {
     const payload = verifyAndDecode(req.headers.authorization)
@@ -314,24 +304,26 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     } = payload
     let user = await db.collection('users').findOne({ userId: userId })
     let credits = 0
-    let userName = '';
+    let userName = ''
     if (!user) {
       let twitchuser = await api.users.getUsers({ id: userId })
       let userName = twitchuser.response.data[0].display_name
       await db.collection('users').insertOne({ userId, userName, credits: 0 })
       credits = 0
     } else {
-      credits = user.credits;
-      userName = user.userName;
+      credits = user.credits
+      userName = user.userName
     }
-    let newUser : User = {userId,userName,credits, askedForRoll: false};
-    userListManager.addUser(newUser);
-    return newUser;
+    let newUser: User = { userId, userName, credits, askedForRoll: false }
+    userListManager.addUser(newUser)
+    return newUser
   }
 
   function getQueueData(req) {
-    console.log({userList: userListManager.userQueue, nextTurn: userListManager.turnEnds})
-    return {userList: userListManager.userQueue, nextTurn: userListManager.turnEnds};
+    return {
+      userList: userListManager.userQueue,
+      nextTurn: userListManager.turnEnds,
+    }
   }
 
   function idleHandler(req) {
@@ -369,7 +361,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
         if (err) {
           console.log(STRINGS.messageSendError, channelId, err)
         } else {
-          verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
+          //verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
         }
       }
     )
@@ -377,6 +369,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
 
   setInterval(callRoll, 10000, channelId + '')
   setInterval(shiftQueue, 30000, channelId + '')
+  
   function broadcastNewQueueData() {
     const headers = {
       'Client-ID': clientId,
@@ -402,7 +395,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
         if (err) {
           console.log(STRINGS.messageSendError, channelId, err)
         } else {
-          verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
+          //verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
         }
       }
     )
@@ -415,9 +408,9 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     broadcastCredits()
   }
 
-  function callRoll(){
-    userListManager.rollCalled();
-    broadcastNewQueueData();
+  function callRoll() {
+    userListManager.rollCalled()
+    broadcastNewQueueData()
     broadcastCredits()
   }
 

@@ -3,9 +3,10 @@ import * as style from './style.css';
 import { inject, observer } from 'mobx-react';
 import { RouteComponentProps } from 'react-router';
 import { STORE_USER, STORE_INVENTORY } from 'app/constants';
-import Inventory from 'app/components/Inventory';
+import Inventory from 'app/components/Inventory2';
 import Credits from 'app/components/Credits';
 import { UserStore, InventoryStore } from 'app/stores';
+import { QueueDisplay } from 'app/components/QueueDisplay';
 
 export interface TwitchAppProps extends RouteComponentProps<any> {
   /** MobX Stores will be injected via @inject() **/
@@ -14,7 +15,6 @@ export interface TwitchAppProps extends RouteComponentProps<any> {
 }
 
 export interface TwitchAppState {}
-
 @inject(STORE_INVENTORY, STORE_USER)
 @observer
 export class TwitchApp extends React.Component<TwitchAppProps, TwitchAppState> {
@@ -43,6 +43,11 @@ export class TwitchApp extends React.Component<TwitchAppProps, TwitchAppState> {
   }
 
   clickEvent(e) {
+    e.stopPropagation();
+    if(this.props.inventory.selectedItem == null){
+      return;
+    }
+    console.log('ab0out to error')
     //window.Twitch.ext.rig.log('hello')
     let x = e.pageX / this.element.offsetWidth;
     let y = e.pageY / this.element.offsetHeight;
@@ -68,8 +73,11 @@ export class TwitchApp extends React.Component<TwitchAppProps, TwitchAppState> {
           onClick={(e) => this.clickEvent(e)}
           className={style.container}
         >
-          <Inventory credits={100}> </Inventory>
-          <Credits credits={this.props.user.credits} />
+          <div className={style.wrap}>
+            <QueueDisplay credits={this.props.user.credits} />
+            <Inventory credits={100}> </Inventory>
+            <Credits credits={this.props.user.credits} />
+          </div>
         </a>
       );
     } else {

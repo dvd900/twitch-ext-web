@@ -6,9 +6,12 @@ import { observer } from 'mobx-react';
 export interface ItemButtonProps {
   item: ItemModel;
   isPressed: boolean;
+  disabled: boolean
   selectItem: (item: ItemModel) => any;
 }
-export interface ItemButtonState {hover:boolean}
+export interface ItemButtonState {
+  hover: boolean;
+}
 @observer
 export class ItemButton extends React.Component<
   ItemButtonProps,
@@ -16,7 +19,7 @@ export class ItemButton extends React.Component<
 > {
   constructor(props?: ItemButtonProps, context?: any) {
     super(props, context);
-    this.state = {hover:false};
+    this.state = { hover: false };
   }
 
   itemClicked = (e) => {
@@ -35,15 +38,19 @@ export class ItemButton extends React.Component<
     }
   };
 
-  hover(hover:boolean){
-    this.setState({hover});
+  hover(hover: boolean) {
+    this.setState({ hover });
   }
   render() {
     return (
-      <div onClick={(e) => this.itemClicked(e)} className={'item'}    
-      onMouseEnter={(e)=> this.hover(true)}
-      onMouseLeave={(e)=>this.hover(false)}>
+      <div
+        onClick={(e) => this.itemClicked(e)}
+        className={style.itemWrap}
+        onMouseEnter={(e) => this.hover(true)}
+        onMouseLeave={(e) => this.hover(false)}
+      >
         <input
+
           style={this.getCursorStyle()}
           className={cx(style.Button, {
             [style.pressed]: this.props.isPressed
@@ -52,11 +59,10 @@ export class ItemButton extends React.Component<
           src={
             'assets/icons/' +
             this.props.item.icon +
-            (this.state.hover||this.props.isPressed ? '_outline' : '') +
+            (this.state.hover || this.props.isPressed ? '_outline' : '') +
             '.svg'
           }
         />
-        <span className={style.price}>{this.props.item.cost}</span>
       </div>
     );
   }

@@ -1,16 +1,37 @@
-.inventory {
-  width: 80%;
+.wrap {
   display: flex;
-  margin-left: auto;
-  margin-right: auto;
-  align-items: center;
+  align-items: flex-end;
+  width: 30%;
+  max-width: 15rem;
+  position: relative;
+}
+.inventory {
+  width: 100%;
+  padding-top: 62.5%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  display: flex;
+  align-self: center;
   justify-content: space-around;
   text-align: center;
 }
+.inventory.disabled {
+  pointer-events: none;
+  opacity: .7;
+}
 .inventoryWrap {
   position: absolute;
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  top: 0;
+  left: 0;
+  max-width: 30rem;
   width: 100%;
-  bottom: 5rem;
+  height: 100%;
+  vertical-align: middle;
+  align-items: center;
 }
 .slider {
   display: inline-block !important;

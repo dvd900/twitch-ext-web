@@ -1,0 +1,1 @@
+export const icon = require("./item_apple");
