@@ -276,14 +276,19 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   }
 
   async function rollCall(req) {
-    const payload = verifyAndDecode(req.headers.authorization)
-    const {
-      channel_id: channelId,
-      opaque_user_id: opaqueUserId,
-      user_id: userId,
-    } = payload
-    userListManager.userResponded(userId)
-    return true
+    try{
+      const payload = verifyAndDecode(req.headers.authorization)
+      const {
+        channel_id: channelId,
+        opaque_user_id: opaqueUserId,
+        user_id: userId,
+      } = payload
+      userListManager.userResponded(userId)
+      return true
+    } catch(err){
+      return false
+    }
+
   }
 
   async function spawnHandler(req) {
