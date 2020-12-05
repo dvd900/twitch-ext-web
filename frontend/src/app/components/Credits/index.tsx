@@ -70,6 +70,8 @@ export class Credits extends React.Component<CreditsProps, CreditsState> {
                 type="image"
                 src={"assets/icons/heart"+(this.state.hoverHeart ? '_filled' : '') + ".svg"}
                 className={style.symbolButton}
+                onClick={ (e) => { e.preventDefault(); e.stopPropagation()}}
+                onDoubleClick= { (e) => { e.preventDefault(); e.stopPropagation()}}
               />
             </div>
             <div className={style.buttonWrap}>
@@ -79,6 +81,7 @@ export class Credits extends React.Component<CreditsProps, CreditsState> {
                 type="image"
                 src={"assets/icons/sad_face"+(this.state.hoverSad ? '_filled' : '') + ".svg"}
                 className={style.symbolButton}
+                onClick={ (e) => { e.preventDefault(); e.stopPropagation()}}
               />
             </div>
           </div>

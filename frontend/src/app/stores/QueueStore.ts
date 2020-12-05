@@ -8,16 +8,20 @@ export class QueueStore {
   nextTurn: number;
   @observable
   isLoaded: boolean;
+  @observable
+  itemSpawned: boolean;
 
   userId: string;
 
   constructor() {}
 
   @action
-  setNewQueueData(queueList: User[], nextTurn: number) {
+  setNewQueueData(queueList: User[], nextTurn: number, itemSpawned: boolean) {
     this.queueList = queueList;
     this.nextTurn = nextTurn;
     this.isLoaded = true;
+    this.itemSpawned = itemSpawned;
+    console.log(itemSpawned, 'item spawned!!')
   }
 
   @action
@@ -27,13 +31,14 @@ export class QueueStore {
       .valueOf();
     if (this.queueList.length !== 0) {
       let user = this.queueList.shift();
+      this.itemSpawned = false;
       this.queueList.push(user);
     }
   }
 
   @computed
   get usersPlace(): number {
-    console.log(this.userId);
+
     return 1 + this.queueList.findIndex((user) => user.userId === this.userId);
   }
 }
@@ -43,6 +48,7 @@ export interface User {
   userName: string;
   userId: string;
   askedForRoll: boolean;
+  noQueue: boolean;
 }
 
 export default QueueStore;

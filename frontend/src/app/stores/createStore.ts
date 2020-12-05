@@ -17,7 +17,7 @@ export function createStores(history: History, defaultTodos?: TodoModel[]) {
   const routerStore = new RouterStore(history);
   const inventoryStore = new InventoryStore();
   const queueStore = new QueueStore();
-  const userStore = new UserStore(queueStore);
+  const userStore = new UserStore(queueStore, inventoryStore);
 
   return {
     [STORE_TODO]: todoStore,

@@ -16,6 +16,7 @@ import * as mongotypes from 'mongodb'
  *    limitations under the License.
  */
 const Path = require('path')
+const util = require('util');
 const fs = require('fs')
 const Hapi = require('hapi')
 const path = require('path')
@@ -52,7 +53,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   const channelCooldowns = {} // rate limit compliance
   let userCooldowns = {} // spam prevention
 
-  const QUEUE_TIME = 30
+  const QUEUE_TIME = 30;
 
   const STRINGS = {
     secretEnv: usingValue('secret'),
@@ -81,12 +82,14 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
 
   const config = require('../conf/config.json')
   const ownerId = getOption('ownerId', 'EXT_OWNER_ID')
+  const clientSecret = "vyjz22san0ldah76lwqbyy3yju8g6l";
   const secret = Buffer.from(config.secret, 'base64')
   const clientId = config.clientId
   const channelId = '448291197'
   var api = require('twitch-helix-api')
   api.clientID = clientId
 
+  var noQueue = true;
   const serverOptions = {
     host: 'localhost',
     port: 8081,
@@ -105,27 +108,27 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   }
   const serverPathRoot = path.resolve(__dirname, '..', 'conf', 'server')
   const server = new Hapi.Server(serverOptions)
-  //const WebSocket = require('ws')
+  const WebSocket = require('ws')
   var WsServerMock = require('ws-mock').WsServer;
   // create ws server instance
-  var wsServer = new WsServerMock();
-  var ws = wsServer.addConnection();
-//  var ws = new WebSocket('ws://localhost:1337/Chat');
+  //var wsServer = new WsServerMock();
+  //var ws = wsServer.addConnection();
+  var ws = new WebSocket('ws://localhost:1337/Chat');
  
 
- // ws.on('open', function open() {
- //   console.log('socket open o7')
- // });
-
+  ws.on('open', function open() {
+    console.log('socket open o7')
+  });
 
 
 
   (async () => {
+    
     // Handle a viewer request to cycle the color.
     const url = await ngrok.connect({
       proto: 'http', // http|tcp|tls, defaults to http
       addr: 8081, // port or network address, defaultst to 80
-      subdomain: 'suicide', // reserved tunnel name https://alex.ngrok.io
+      subdomain: 'suicide2', // reserved tunnel name https://alex.ngrok.io
       authtoken: config.ngrAuth, // your authtoken from ngrok.com
       region: 'us', // one of ngrok regions (us, eu, au, ap), defaults to us
     })
@@ -187,7 +190,36 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   })()
 
   var userListManager = new UserListManager(QUEUE_TIME)
-  
+  var accessToken = '';
+  async function getAuth() {
+    const headers = {
+      'Client-ID': clientId,
+      'Content-Type': 'application/json',
+    }
+    console.log(secret);
+    const body = JSON.stringify({
+      content_type: 'application/json',
+      grant_type: 'client_credentials',
+      client_secret: clientSecret,
+      client_id: clientId
+    })
+    
+    // Send the broadcast request to the Twitch API.
+    let res = await util.promisify(request)(
+      `https://id.twitch.tv/oauth2/token`,
+      {
+        method: 'POST',
+        headers,
+        body,
+      }
+    )
+    console.log('got token', res.body);
+    return JSON.parse(res.body).access_token;
+  }
+  getAuth().then((token)=>{
+    console.log('setting token', token);
+    accessToken = token});
+
   function shiftQueue() {
     userListManager.next()
   }
@@ -217,8 +249,32 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     return option
   }
 
+  async function getTwitchUser(id){
+    const headers = {
+      'Client-ID': clientId,
+      'Authorization': 'Bearer '+ accessToken, 
+      'Content-Type': 'application/json',
+    }
+    const body = JSON.stringify({
+      id
+    })
+    console.log('token:', accessToken);
+    console.log(headers, body);
+    // Send the broadcast request to the Twitch API.
+    let res = await util.promisify(request)(
+      `https://api.twitch.tv/helix/users?id=${id}`,
+      {
+        method: 'GET',
+        headers,
+        body,
+      }
+    )
+    return res;
+  }
+
   // Verify the header and the enclosed JWT.
   function verifyAndDecode(header) {
+
     if (header.startsWith(bearerPrefix)) {
       try {
         const token = header.substring(bearerPrefix.length)
@@ -288,21 +344,26 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     } catch(err){
       return false
     }
-
   }
 
   async function spawnHandler(req) {
     const payload = verifyAndDecode(req.headers.authorization)
     delete req.payload.cost;
+    userListManager.itemSpawned = true; 
+    broadcastItemSpawn(payload.userId, {x: req.payload.x, y: req.payload.y});
+    req.payload.y = 1-req.payload.y;
     let data = JSON.stringify(req.payload)
     let messageInd = 1
+    console.log(payload);
+    console.log({x: req.payload.x, y: req.payload.y});
     console.log('sending to unity', data)
     ws.send(messageInd + "_"+ data)
     return { credits: 0 }
   }
+
   async function userHandler(req) {
     const payload = verifyAndDecode(req.headers.authorization)
-    const {
+    let {
       channel_id: channelId,
       opaque_user_id: opaqueUserId,
       user_id: userId,
@@ -311,29 +372,34 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     let credits = 0
     let userName = ''
     if (!user) {
-      let twitchuser = await api.users.getUsers({ id: userId })
-      let userName = twitchuser.response.data[0].display_name
+      try{
+        let twitchuser = await getTwitchUser(userId)
+        console.log(twitchuser.body);
+        userName = JSON.parse(twitchuser.body).data[0].display_name
+      } catch(err){
+        throw err;
+      }
       await db.collection('users').insertOne({ userId, userName, credits: 0 })
       credits = 0
     } else {
       credits = user.credits
       userName = user.userName
     }
-    let newUser: User = { userId, userName, credits, askedForRoll: false }
+    let newUser: User = { userId, userName, credits, askedForRoll: false, noQueue }
     userListManager.addUser(newUser)
     return newUser
   }
 
   function getQueueData(req) {
+    console.log('userlist', userListManager.userQueue,)
     return {
       userList: userListManager.userQueue,
       nextTurn: userListManager.turnEnds,
+      itemSpawned: userListManager.itemSpawned
     }
   }
 
   function idleHandler(req) {
-    console.log('got idle')
-    console.log(req.headers.authorization)
     const payload = verifyAndDecode(req.headers.authorization)
     const { channel_id: channelId, opaque_user_id: opaqueUserId } = payload
     let messageInd = 1
@@ -350,10 +416,9 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
     }
     const body = JSON.stringify({
       content_type: 'application/json',
-      message: 'token-time',
+      message: JSON.stringify({foo:"bar"}),
       targets: ['broadcast'],
     })
-
     // Send the broadcast request to the Twitch API.
     request(
       `https://api.twitch.tv/extensions/message/${channelId}`,
@@ -364,15 +429,47 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
       },
       (err, res) => {
         if (err) {
+          console.log(err);
           console.log(STRINGS.messageSendError, channelId, err)
         } else {
-          //verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
+          verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
         }
       }
     )
   }
 
-  setInterval(callRoll, 10000, channelId + '')
+  function broadcastItemSpawn(userId:string, coordinates: {x:number, y:number}) {
+    const headers = {
+      'Client-ID': clientId,
+      'Content-Type': 'application/json',
+      Authorization: bearerPrefix + makeServerToken(channelId),
+    }
+    console.log(JSON.stringify({type:"itemSpawn", coordinates, userId}));
+    const body = JSON.stringify({
+      content_type: 'application/json',
+      message: JSON.stringify({type:"itemSpawn", coordinates, userId}),
+      targets: ['broadcast'],
+    })
+    // Send the broadcast request to the Twitch API.
+    request(
+      `https://api.twitch.tv/extensions/message/${channelId}`,
+      {
+        method: 'POST',
+        headers,
+        body,
+      },
+      (err, res) => {
+        if (err) {
+          console.log(err);
+          console.log(STRINGS.messageSendError, channelId, err)
+        } else {
+          verboseLog(STRINGS.pubsubResponse, channelId, res.statusCode)
+        }
+      }
+    )
+  }
+
+  setInterval(callRoll, 40000, channelId + '')
   setInterval(shiftQueue, 30000, channelId + '')
   
   function broadcastNewQueueData() {
@@ -384,7 +481,7 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
 
     const body = JSON.stringify({
       content_type: 'application/json',
-      message: 'queue',
+      message: JSON.stringify({foo:"bar"}),
       targets: ['broadcast'],
     })
 
@@ -414,8 +511,9 @@ MongoClient.connect(url, function(err, client: mongotypes.MongoClient) {
   }
 
   function callRoll() {
+    console.log('called roll');
     userListManager.rollCalled()
-    broadcastNewQueueData()
+    //broadcastNewQueueData()
     broadcastCredits()
   }
 

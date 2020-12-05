@@ -14,7 +14,8 @@
   filter: contrast(0) sepia(1) hue-rotate(60deg) brightness(0.24);
 }
 .itemWrap {
-  width: 40%;
+  width: 80%;
+  margin:10px auto;
 }
 .Button:hover {
   opacity: 0.85 !important;

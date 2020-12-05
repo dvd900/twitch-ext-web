@@ -49,7 +49,7 @@ export default class Authentication{
 
         try {
             let decoded = jwt.decode(token)
-            
+            console.log('decoded');
             if(decoded.role === 'broadcaster' || decoded.role === 'moderator'){
                 isMod = true
             }
@@ -57,6 +57,7 @@ export default class Authentication{
             user_id = decoded.user_id
             role = decoded.role
         } catch (e) {
+            console.log('failed to decode');
             token=''
             opaque_id=''
         }

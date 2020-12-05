@@ -5,13 +5,16 @@ export class UserListManager {
   userQueue: User[] = []
   usersAnsweredRoll: String[] = []
   turnEnds: number
+  itemSpawned: boolean
   constructor(queueTime: number) {
     this.queueTime = queueTime
   }
 
   addUser(user: User) {
     if (!this.userMap[user.userId]) {
-      console.log('adding user to userMap', user.userId)
+      if(!user.userId) {
+        user.userId = (Math.random()*1000).toString();
+      }
       this.userMap[user.userId] = user
       if (this.userQueue.length === 0) {
         this.turnEnds = (moment(Date.now())
@@ -25,14 +28,18 @@ export class UserListManager {
   }
 
   rollCalled() {
+    console.log(this.usersAnsweredRoll);
     for (const userId in this.userMap) {
       let found = this.usersAnsweredRoll.find(answeredUserId => {
         return answeredUserId === userId
       })
       if (!found) {
         if (this.userMap[userId].askedForRoll) {
+          if(this.userQueue[0].userId === userId){
+            this.next();
+          }
           delete this.userMap[userId]
-          //console.log(`User: ${userId} not found bye bye now hunny`)
+          console.log(`User: ${userId} not found bye bye now hunny`)
         } else {
           this.userMap[userId].askedForRoll = true
         }
@@ -40,7 +47,10 @@ export class UserListManager {
         //console.log(`User: ${this.userMap[userId].userName} checked in :)`)
       }
     }
-    this.userQueue.filter(user => this.userMap.hasOwnProperty(user.userId))
+    console.log('purging queue');
+    this.userQueue = this.userQueue.filter(user => {
+      return this.userMap.hasOwnProperty(user.userId);
+    })
     this.usersAnsweredRoll = []
   }
 
@@ -51,6 +61,7 @@ export class UserListManager {
   }
 
   next() {
+    this.itemSpawned = false;
     this.turnEnds = (moment(Date.now())
       .add(this.queueTime, 'seconds')).valueOf()
     if (this.userQueue.length !== 0) {
@@ -65,6 +76,7 @@ export interface User {
   userName: string
   userId: string
   askedForRoll: boolean
+  noQueue: boolean
 }
 interface UserMap {
   [userId: string]: User

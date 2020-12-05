@@ -19,7 +19,7 @@ export class QueueDisplay extends React.Component<CreditsProps, CreditsState> {
   constructor(props?: CreditsProps, context?: any) {
     super(props, context);
     this.state = { timeLeft: 30 };
-    setInterval(this.calculateTimeLeft.bind(this), 100);
+    //setInterval(this.calculateTimeLeft.bind(this), 100);
   }
 
   get queue() {
@@ -44,12 +44,12 @@ export class QueueDisplay extends React.Component<CreditsProps, CreditsState> {
       let userPlace = this.queue.usersPlace;
       let totalUsers = this.queue.queueList.length;
       return (
-        <div className={style.queueContainer}>
+        <div style={{opacity: 0}}className={style.queueContainer}>
           <div className={style.wrap}>
             <QueueRatio userPlace={userPlace} totalUsers={totalUsers} />
             <QueueTurn
               timeLeft={this.state.timeLeft}
-              userName={this.props.queue.queueList[0].userName}
+              userName={this.props.queue.queueList[0] ? this.props.queue.queueList[0].userName : ''}
             />
           </div>
         </div>
