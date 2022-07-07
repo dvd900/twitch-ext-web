@@ -54,7 +54,7 @@
     "mobx": "^5.8.0",
     "mobx-react": "^5.4.3",
     "mobx-react-router": "^4.0.5",
-    "moment": "^2.24.0",
+    "moment": "^2.29.4",
     "nuka-carousel": "^4.5.12",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
